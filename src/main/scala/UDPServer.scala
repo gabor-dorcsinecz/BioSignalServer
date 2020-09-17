@@ -12,58 +12,26 @@ import zio.nio.core.{Buffer, ByteBuffer, SocketAddress}
 object UDPServer {
 
 
-  def start(port: Int): RIO[Console with Clock with Random, Unit] = {
-    for {
-      serverStarted <- Promise.make[Nothing, SocketAddress]
-      server <- echoServer(serverStarted, port)
-      addr <- serverStarted.await
-      //same          <- echoClient(addr)
-    } yield server
-
-
-    //    for {
-    //      socketAddress <- SocketAddress.inetSocketAddress(port)
-    //      channel <- DatagramChannel.bind(Some(socketAddress))
-    //      _ <- putStrLn("Listening on port: " + port)
-    //    } yield ()
-    //
-    //
-    //    AsynchronousServerSocketChannel().use(
-    //      server =>
-    //        for {
-    //          socketAddress <- SocketAddress.inetSocketAddress(port)
-    //          _ <- server.bind(socketAddress)
-    //          _ <- putStrLn("Listening on port: " + port)
-    //          _ <- server.accept.reserve.flatMap(accept).forever
-    //        } yield ()
-    //    )
-  }
-
-  def echoServer(started: Promise[Nothing, SocketAddress], port: Int) = {
-    //val jbuf = java.nio.ByteBuffer.allocate(10)
-    //val bb = IO.effect(jbuf).map(Buffer.byteFromJava(_)).refineToOrDie[IllegalArgumentException]
-
+  def start(port: Int) = {
     for {
       address <- SocketAddress.inetSocketAddress(port)
-      _ <- putStrLn("Listening on port: " + port)
-      sink    <- Buffer.byte(50)
-      worker <- DatagramChannel
-        .bind(Some(address))
-        .use { server =>
-          for {
-            addr <- server.localAddress.flatMap(opt => IO.effect(opt.get).orDie)
-            //_          <- started.succeed(addr)
-            retAddress <- server.receive(sink)
-            msg <- byteBuffer2String(sink)
-            _ <- putStrLn("Received: " + msg) //StandardCharsets.UTF_8.decode(jbuf).toString())
-            addr <- ZIO.fromOption(retAddress)
-            _ <- sink.flip
-            _ <- server.send(sink, addr)
-          } yield ()
-        }
-        .fork
-    } yield worker
+      _       <- putStrLn("Listening on port: " + port)
+      worker  <- DatagramChannel.bind(Some(address)).use(accept(_)).forever
+    } yield ()
   }
+
+  def accept(server:DatagramChannel) = {
+    for {
+      sink    <- Buffer.byte(512)
+      retAddress <- server.receive(sink)
+      msg <- byteBuffer2String(sink)
+      _ <- putStrLn("Received: " + msg) //StandardCharsets.UTF_8.decode(jbuf).toString())
+      addr <- ZIO.fromOption(retAddress)
+      _ <- sink.flip
+      _ <- server.send(sink, addr)
+    } yield ()
+  }
+
 
 
   def byteBuffer2String(bb: zio.nio.core.ByteBuffer) = {

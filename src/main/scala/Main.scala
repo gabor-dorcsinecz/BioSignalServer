@@ -9,8 +9,10 @@ object Main extends zio.App {
     //udpClient()
     //ZIO.effectTotal(println("Finished Running")).exitCode
 
-        UDPServer.start(9999)
-          .foldM(e => putStrLn("Error: " + e.getMessage) *> ZIO.succeed(ExitCode.failure), _ => ZIO.succeed(ExitCode.success))
+//        UDPServer.start(9999)
+//          .foldM(e => putStrLn("Error: " + e.getMessage) *> ZIO.succeed(ExitCode.failure), _ => ZIO.succeed(ExitCode.success))
+    (UDPServer.start(9999)as ExitCode.success) orElse ZIO.succeed(ExitCode.success)
+
   }
 
 
